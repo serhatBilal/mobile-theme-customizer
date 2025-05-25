@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mobile-theme-customizer
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:./prisma/dev.sqlite
