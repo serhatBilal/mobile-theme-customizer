@@ -3,58 +3,20 @@ import { authenticate } from "../shopify.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    // Adım 1: Kimlik doğrulama
+    console.log("Kimlik doğrulama başlatılıyor...");
+    const { admin, session } = await authenticate.admin(request);
+    console.log("Kimlik doğrulama başarılı, shop:", session.shop);
 
-    // Shopify API'den tema ayarlarını almak için GraphQL sorgusu
-    const response = await admin.graphql(
-      `#graphql
-        query {
-          shop {
-            name
-            primaryDomain {
-              url
-            }
-            metafields(first: 10, namespace: "theme_settings") {
-              edges {
-                node {
-                  key
-                  value
-                }
-              }
-            }
-          }
-        }
-      `,
-    );
-
-    const responseJson = await response.json();
-
-    // Metafields verilerini alıyoruz
-    let metafields = [];
-    try {
-      metafields = responseJson.data.shop.metafields.edges;
-    } catch (err) {
-      console.log("Metafields verisi bulunamadı veya boş:", err);
-    }
-
-    // Varsayılan renk ayarlarımız
+    // Adım 2: Basitleştirilmiş test yanıtı
+    // Bu ilk aşamada sadece statik değerler döndürelim
     const colorSettings = {
-      primary_color: "#FF5733", // Varsayılan değerler
+      primary_color: "#FF5733",
       secondary_color: "#33FF57",
       text_color: "#333333",
+      shop: session.shop, // Doğrulama için mağaza bilgisini ekleyelim
+      timestamp: new Date().toISOString(),
     };
-
-    // Metafields'dan renk değerlerini alın (eğer varsa)
-    metafields.forEach((item: any) => {
-      const { node } = item;
-      if (node.key === "primary_color") {
-        colorSettings.primary_color = node.value;
-      } else if (node.key === "secondary_color") {
-        colorSettings.secondary_color = node.value;
-      } else if (node.key === "text_color") {
-        colorSettings.text_color = node.value;
-      }
-    });
 
     // CORS başlıkları ekleyin
     return json(colorSettings, {
@@ -66,11 +28,32 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   } catch (error: unknown) {
     console.error("API Error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Bilinmeyen hata";
+    let errorMessage = "Bilinmeyen hata";
+    let errorDetails = {};
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = {
+        name: error.name,
+        stack: error.stack,
+      };
+    }
+
     return json(
-      { error: "Renk bilgileri alınamadı", details: errorMessage },
-      { status: 500 },
+      {
+        error: "Renk bilgileri alınamadı",
+        details: errorMessage,
+        errorInfo: errorDetails,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      },
     );
   }
 }
