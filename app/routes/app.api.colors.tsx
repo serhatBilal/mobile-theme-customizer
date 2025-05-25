@@ -144,44 +144,86 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   } catch (error: unknown) {
     console.error("API Kök Hatası:", error);
-    let errorMessage = "Bilinmeyen hata";
+    let errorMessage = "Bilinmeyen bir hata oluştu.";
     let errorDetails: any = {};
+    let responseStatus = 500; // Default to 500 Internal Server Error
 
-    if (error instanceof Error) {
+    if (error instanceof Response) {
+      // This handles Responses thrown by authenticate.admin or other Remix/Shopify functions
+      console.log("Hata bir Response nesnesi. Durum:", error.status);
+      const originalStatus = error.status;
+      const locationHeader = error.headers.get("Location");
+
+      if (originalStatus >= 300 && originalStatus < 400 && locationHeader) {
+        // This is a redirect Response (e.g., 302 to /auth/login)
+        // For an API, we shouldn't follow the redirect, but return 401.
+        errorMessage = "Kimlik doğrulama başarısız veya gerekli.";
+        responseStatus = 401; // Unauthorized
+        errorDetails = {
+          reason: "Authentication required; received redirect.",
+          originalStatus: originalStatus,
+          intendedRedirectLocation: locationHeader,
+        };
+        console.log(
+          `API için kimlik doğrulama yönlendirmesi yakalandı (${originalStatus} to ${locationHeader}). 401 döndürülüyor.`,
+        );
+      } else {
+        // It's a Response, but not a redirect (e.g., 400, 403, 500 from Shopify API or other sources)
+        errorMessage = `API Hatası: ${error.status} ${error.statusText}`;
+        responseStatus = error.status;
+        try {
+          // Attempt to parse the body of the error Response for more details
+          const bodyText = await error.text(); // Use text() first to avoid JSON parse errors if not JSON
+          errorDetails = { data: bodyText, originalStatus: error.status };
+          // Optionally, try to parse as JSON if it seems like it might be
+          // if (error.headers.get("content-type")?.includes("application/json")) {
+          //   errorDetails.data = JSON.parse(bodyText);
+          // }
+        } catch (parseError) {
+          console.warn("Hata yanıtının gövdesi ayrıştırılamadı:", parseError);
+          errorDetails = {
+            data: "Hata yanıtının gövdesi okunamadı.",
+            originalStatus: error.status,
+          };
+        }
+      }
+    } else if (error instanceof Error) {
+      // Standard JavaScript Error object
       errorMessage = error.message;
+      responseStatus = 500; // Typically, unhandled errors become 500
       errorDetails = {
         name: error.name,
-        stack: error.stack,
         message: error.message,
+        // stack: error.stack, // Consider implications of exposing stack in production
       };
-    } else if (
-      typeof error === "object" &&
-      error !== null &&
-      "status" in error &&
-      "statusText" in error
-    ) {
-      // Bu kısım, authenticate.admin'den gelen Response objesini yakalamak için
-      errorMessage = `Authentication/Authorization Error: ${error.status} ${error.statusText}`;
-      if ("data" in error) {
-        errorDetails.data = error.data;
+      // You might want to check error.message for specific Shopify auth errors here too
+      // if (error.message.includes("some auth keyword")) {
+      //   responseStatus = 401;
+      // }
+    } else {
+      // Fallback for other types of thrown values
+      errorMessage = "Beklenmeyen bir hata türü yakalandı.";
+      responseStatus = 500;
+      try {
+        errorDetails = { received: JSON.stringify(error) };
+      } catch (e) {
+        errorDetails = { received: String(error) };
       }
     }
 
+    console.log(
+      `API hata yanıtı hazırlanıyor. Durum: ${responseStatus}, Mesaj: ${errorMessage}`,
+    );
+
     return json(
       {
-        error: "Renk bilgileri API'den alınamadı",
-        details: errorMessage,
-        errorInfo: errorDetails,
+        error: "Renk ayarları API'den alınamadı.", // Generic top-level error message
+        message: errorMessage, // More specific message from the error handling
+        details: errorDetails, // Additional details about the error
         timestamp: new Date().toISOString(),
       },
       {
-        status:
-          typeof error === "object" &&
-          error !== null &&
-          "status" in error &&
-          typeof error.status === "number"
-            ? error.status
-            : 500,
+        status: responseStatus,
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, OPTIONS",
