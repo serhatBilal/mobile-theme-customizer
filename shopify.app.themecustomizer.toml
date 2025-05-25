@@ -1,0 +1,28 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "67d9a0afc5bb6dceba6f76f614ad00e4"
+name = "ThemeCustomizer"
+handle = "themecustomizer"
+application_url = "https://logo-rebate-horizontal-sent.trycloudflare.com"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2025-04"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_customers,write_draft_orders,write_products"
+
+[auth]
+redirect_urls = [
+  "https://logo-rebate-horizontal-sent.trycloudflare.com/auth/callback",
+  "https://logo-rebate-horizontal-sent.trycloudflare.com/auth/shopify/callback",
+  "https://logo-rebate-horizontal-sent.trycloudflare.com/api/auth/callback"
+]
+
+[pos]
+embedded = false
