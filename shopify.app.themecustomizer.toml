@@ -3,7 +3,7 @@
 client_id = "67d9a0afc5bb6dceba6f76f614ad00e4"
 name = "ThemeCustomizer"
 handle = "themecustomizer"
-application_url = "https://logo-rebate-horizontal-sent.trycloudflare.com"
+application_url = "https://ist-guitars-rapidly-scanner.trycloudflare.com"
 embedded = true
 
 [build]
@@ -19,9 +19,9 @@ scopes = "write_customers,write_draft_orders,write_products"
 
 [auth]
 redirect_urls = [
-  "https://logo-rebate-horizontal-sent.trycloudflare.com/auth/callback",
-  "https://logo-rebate-horizontal-sent.trycloudflare.com/auth/shopify/callback",
-  "https://logo-rebate-horizontal-sent.trycloudflare.com/api/auth/callback"
+  "https://ist-guitars-rapidly-scanner.trycloudflare.com/auth/callback",
+  "https://ist-guitars-rapidly-scanner.trycloudflare.com/auth/shopify/callback",
+  "https://ist-guitars-rapidly-scanner.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

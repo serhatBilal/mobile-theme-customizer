@@ -70,13 +70,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             primaryDomain {
               url
             }
-            metafields(first: 10, namespace: "theme_settings") {
-              edges {
-                node {
-                  key
-                  value
-                }
-              }
+            metafield(namespace: "mobile_app", key: "header_color") {
+              value
             }
           }
         }
@@ -84,62 +79,49 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
 
     const responseJson = await response.json();
-    console.log("Metafield sorgu yanıtı alındı.");
-
-    // Metafields verilerini alıyoruz
-    let metafields = [];
-    try {
-      if (
-        responseJson.data &&
-        responseJson.data.shop &&
-        responseJson.data.shop.metafields
-      ) {
-        metafields = responseJson.data.shop.metafields.edges;
-        console.log("Metafield'lar bulundu:", metafields.length);
-      } else {
-        console.log(
-          "Yanıt içinde beklenen metafields yolu bulunamadı.",
-          responseJson.data,
-        );
-      }
-    } catch (err) {
-      console.warn(
-        "Metafields verisi ayrıştırılırken hata veya veri boş:",
-        err,
-      );
-    }
+    console.log("Metafield sorgu yanıtı alındı:", responseJson);
 
     // Varsayılan renk ayarlarımız
     const colorSettings = {
-      primary_color: "#ABCDEF", // Farklı bir varsayılan kullanalım ki değişim görünsün
-      secondary_color: "#FEDCBA",
-      text_color: "#123456",
+      header_color: {
+        hue: 0,
+        saturation: 0,
+        brightness: 0,
+        alpha: 1,
+      },
       shop: session.shop,
       auth_method: authHeader || shopifyTokenHeader ? "token" : "session",
       timestamp: new Date().toISOString(),
     };
 
-    // Metafields'dan renk değerlerini alın (eğer varsa)
-    metafields.forEach((item: any) => {
-      const { node } = item;
-      if (node.key === "primary_color") {
-        colorSettings.primary_color = node.value;
-      } else if (node.key === "secondary_color") {
-        colorSettings.secondary_color = node.value;
-      } else if (node.key === "text_color") {
-        colorSettings.text_color = node.value;
+    // Metafield'dan header_color değerini alın (eğer varsa)
+    if (responseJson.data?.shop?.metafield?.value) {
+      try {
+        colorSettings.header_color = JSON.parse(
+          responseJson.data.shop.metafield.value,
+        );
+        console.log(
+          "Header rengi metafield'dan alındı:",
+          colorSettings.header_color,
+        );
+      } catch (err) {
+        console.warn("Header renk metafield değeri ayrıştırılamadı:", err);
       }
-    });
+    } else {
+      console.log("Header renk metafield bulunamadı veya boş.");
+    }
 
     console.log("Son renk ayarları:", colorSettings);
 
-    // CORS başlıkları ekleyin
+    // CORS başlıkları ekleyin - Tüm kaynaklardan erişime izin verin
     return json(colorSettings, {
       headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Origin": "*", // Tüm kaynaklardan erişime izin ver
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-Shopify-Access-Token",
+          "Content-Type, Authorization, X-Shopify-Access-Token, X-API-KEY",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400", // 24 saat
       },
     });
   } catch (error: unknown) {
@@ -225,10 +207,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
       {
         status: responseStatus,
         headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Origin": "*", // Tüm kaynaklardan erişime izin ver
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers":
-            "Content-Type, Authorization, X-Shopify-Access-Token",
+            "Content-Type, Authorization, X-Shopify-Access-Token, X-API-KEY",
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Max-Age": "86400", // 24 saat
         },
       },
     );
@@ -242,17 +226,15 @@ export function action({ request }: LoaderFunctionArgs) {
     return new Response(null, {
       status: 204, // No Content
       headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS", // POST eklendi, gerekirse
+        "Access-Control-Allow-Origin": "*", // Tüm kaynaklardan erişime izin ver
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-Shopify-Access-Token",
-        "Access-Control-Max-Age": "86400", // 1 gün
+          "Content-Type, Authorization, X-Shopify-Access-Token, X-API-KEY",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400", // 24 saat
       },
     });
   }
 
-  return json(
-    { message: "Yalnızca GET ve OPTIONS isteklerine izin verilir" },
-    { status: 405 },
-  );
+  return json({ error: "Method not allowed" }, { status: 405 });
 }
